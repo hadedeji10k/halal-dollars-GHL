@@ -22,7 +22,7 @@ export default function Home() {
   const [config, setConfig] = useState({
     reference: new Date().getTime().toString(),
     email: "",
-    amount: 3060000, //Amount is in the country's lowest currency. E.g Kobo, so 20000 kobo = N200
+    amount: process.env.NEXT_PUBLIC_PAYMENT_AMOUNT || 3060000,
     publicKey: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY,
     metadata: {},
   });
