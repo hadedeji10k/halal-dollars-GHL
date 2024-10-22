@@ -147,7 +147,7 @@ export default function Home() {
       icon: "success",
       confirmButtonText: "Ok",
     }).finally(() => {
-      router.reload();
+      router.push("/success");
     });
   };
 
@@ -297,7 +297,6 @@ export default function Home() {
                   id="demo-select-small"
                   value={formik.values.country}
                   onChange={(event: SelectChangeEvent) => {
-                    console.log("vcal?", event.target.value);
                     formik.setFieldValue("country", event.target.value);
                     formik.setFieldTouched("country", true);
                   }}
