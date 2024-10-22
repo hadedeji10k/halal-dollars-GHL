@@ -195,6 +195,11 @@ export default function Home() {
                 disabled={formik.isSubmitting || showPaystack}
                 error={formik.touched.email && formik.errors.email}
               />
+              {formik.values.email && (
+                <p className="mb-4 mt-1 text-[#001f5c] text-sm text-left">
+                  Note: Do not use email already used for GoHighLevel
+                </p>
+              )}
               <Input
                 className="max-w-full"
                 label="Password"
@@ -374,7 +379,7 @@ export default function Home() {
                 className="bg-[#003db8d7] text-[#f9f5ff] p-[10px_20px] border-none rounded-[5px] mt-[20px] cursor-pointer transition-all duration-300 hover:bg-[#0237a1]"
                 disabled={formik.isSubmitting || showPaystack}
               >
-                Pay
+                Make Payment
               </button>
             )}
           </div>
