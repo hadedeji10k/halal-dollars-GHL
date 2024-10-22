@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { ChangeEvent, useEffect, useState } from "react";
 import Input from "../components/Input";
 import * as Yup from "yup";
 import { useFormik } from "formik";
@@ -11,6 +11,7 @@ import MenuItem from "@mui/material/MenuItem";
 import Select, { SelectChangeEvent } from "@mui/material/Select";
 import { countries, timezones } from "@/utils/constant";
 import { useRouter } from "next/router";
+import PasswordStrength from "@/components/PasswordStrength";
 
 const Paystack = dynamic(() => import("@/components/Paystack"), {
   ssr: false,
@@ -20,14 +21,34 @@ export default function Home() {
   const router = useRouter();
   const [showPaystack, setShowPaystack] = useState(false);
 
-  const [paymentUrl, setPaymentUrl] = useState("");
-  const bottomRef = React.useRef<HTMLDivElement>(null);
+  const [config, setConfig] = useState({
+    reference: new Date().getTime().toString(),
+    email: "",
+    amount: process.env.NEXT_PUBLIC_PAYMENT_AMOUNT || 3060000,
+    publicKey: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY,
+    metadata: {},
+  });
+
+  const [hasEightCharacters, setHasEightCharacters] = useState(false);
+  const [hasSpecialCharacter, setHasSpecialCharacter] = useState(false);
+  const [hasUpperCase, setHasUpperCase] = useState(false);
+  const [hasLowerCase, setHasLowerCase] = useState(false);
+  const [hasOneNumber, setHasOneNumber] = useState(false);
 
   const registerSchema = Yup.object().shape({
     email: Yup.string()
       .email("Email must be a valid email")
       .required("Email is required"),
-    password: Yup.string().required("Password is required"),
+    password: Yup.string()
+      .required("Password is required")
+      .min(8, "Password must be at least 8 characters long")
+      .matches(/[A-Z]/, "Password must contain at least one uppercase letter")
+      .matches(/[a-z]/, "Password must contain at least one lowercase letter")
+      .matches(/\d/, "Password must contain at least one number")
+      .matches(
+        /[!@#$%^&*()_+{}\[\]:;<>,.?~\\]/,
+        "Password must contain at least one special character (!@#$%^&*()_+{}[]:;<>,.?~\\)"
+      ),
     firstName: Yup.string().required("First name is required"),
     lastName: Yup.string().required("Last Name is required"),
     name: Yup.string().required("Full name is required"),
@@ -70,8 +91,28 @@ export default function Home() {
           firstName: values.firstName,
           lastName: values.lastName,
           phoneNumber: values.phone,
-          amount: process.env.NEXT_PUBLIC_PAYMENT_AMOUNT || 3060000,
-          metadata: JSON.stringify({
+          amount: config.amount,
+        }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!res.ok) {
+        Swal.fire({
+          title: "Error!",
+          text: "An error occurred while processing your request",
+          icon: "error",
+          confirmButtonText: "Ok",
+        });
+        return;
+      } else {
+        const data = await res.json();
+        setConfig({
+          ...config,
+          reference: data.id,
+          email: values.email,
+          metadata: {
             custom_fields: [
               {
                 display_name: "Email",
@@ -90,36 +131,43 @@ export default function Home() {
               },
             ],
             ...values,
-          }),
-          callback_url: `${window.location.origin}/success`,
-        }),
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (!res.ok) {
-        Swal.fire({
-          title: "Error!",
-          text: "An error occurred while processing your request",
-          icon: "error",
-          confirmButtonText: "Ok",
+          },
         });
-        return;
-      } else {
-        const data = await res.json();
-        console.log("Data>>", data);
-        setPaymentUrl(data.url);
-        bottomRef.current?.scrollIntoView({ behavior: "smooth" });
         setShowPaystack(true);
       }
       return;
     },
   });
 
+  const onSuccess = (reference: string) => {
+    setShowPaystack(false);
+    Swal.fire({
+      title: "Success!",
+      text: "Congratulations!!! You've successfully purchased a GoHighLevel account. You will receive an email shortly.",
+      icon: "success",
+      confirmButtonText: "Ok",
+    }).finally(() => {
+      router.reload();
+    });
+  };
+
   const onClose = () => {
     formik.setSubmitting(false);
     setShowPaystack(false);
+  };
+
+  const handlePasswordChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    const hasSpecialCharacterTest = /[!@#$%^&*()_+{}\[\]:;<>,.?~\\]/;
+    setHasSpecialCharacter(hasSpecialCharacterTest.test(value));
+    const hasUpperCaseTest = /[A-Z]/;
+    setHasUpperCase(hasUpperCaseTest.test(value));
+    const hasLowerCaseTest = /[a-z]/;
+    setHasLowerCase(hasLowerCaseTest.test(value));
+    const hasOneNumberTest = /\d+/;
+    setHasOneNumber(hasOneNumberTest.test(value));
+    setHasEightCharacters(value.length >= 8 ? true : false);
+    formik.setFieldValue("password", value);
   };
 
   return (
@@ -152,13 +200,22 @@ export default function Home() {
                 label="Password"
                 defaultValue={formik.values.password}
                 name="password"
-                onChange={formik.handleChange}
-                onBlur={formik.handleBlur}
+                onChange={handlePasswordChange}
+                onBlur={handlePasswordChange}
                 placeholder="********"
                 disabled={formik.isSubmitting || showPaystack}
                 error={formik.touched.password && formik.errors.password}
                 type="password"
               />
+              {formik.values.password && (
+                <PasswordStrength
+                  hasEightCharacters={hasEightCharacters}
+                  hasLowerCase={hasLowerCase}
+                  hasOneNumber={hasOneNumber}
+                  hasSpecialCharacter={hasSpecialCharacter}
+                  hasUpperCase={hasUpperCase}
+                />
+              )}
               <Input
                 className="max-w-full"
                 label="First Name"
@@ -304,9 +361,12 @@ export default function Home() {
                 </Select>
               </div>
             </div>
-            <div ref={bottomRef}></div>
             {showPaystack ? (
-              <Paystack url={paymentUrl} onClose={onClose} />
+              <Paystack
+                onClose={onClose}
+                onSuccess={onSuccess}
+                config={config}
+              />
             ) : (
               <button
                 type="submit"
