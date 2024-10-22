@@ -86,6 +86,7 @@ model GHLTransaction {
     lastName            String
     phoneNumber         String?
     amount              Decimal
+    transactionNotes    String[]
     ghlAccountGenerated Boolean           @default(false) @map(name: "ghl_account_generated")
     status              TransactionStatus @default(PENDING)
     accountGeneratedAt  DateTime?         @map(name: "account_generated_at")

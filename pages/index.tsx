@@ -128,7 +128,7 @@ export default function Home() {
     setShowPaystack(false);
     Swal.fire({
       title: "Success!",
-      text: "Congratulations!!! You've successfully purcahsed a GoHighLevel account. You will receive an email shortly.",
+      text: "Congratulations!!! You've successfully purchased a GoHighLevel account. You will receive an email shortly.",
       icon: "success",
       confirmButtonText: "Ok",
     }).finally(() => {

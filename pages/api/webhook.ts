@@ -4,6 +4,7 @@ import crypto from "crypto";
 import prisma from "@/lib/prisma";
 import { addSeconds, isFuture } from "date-fns";
 import { scopes, permissions } from "@/utils/constant";
+import { GHLTransaction } from "@/prisma/prisma-client";
 
 const BASE_URL = "https://services.leadconnectorhq.com";
 
@@ -47,9 +48,9 @@ export default async function handler(
       if (transaction && transaction.status === "SUCCESS") {
         res.status(200).send("Success");
       } else if (transaction && transaction.status === "PENDING") {
-        handleGHLAccountCreation(
+        await handleGHLAccountCreation(
           verifiedTransaction?.data?.metadata,
-          transaction.id
+          transaction
         );
         res.status(200).send("Success");
       }
@@ -70,8 +71,12 @@ export default async function handler(
 
 const handleGHLAccountCreation = async (
   details: any,
-  transactionId: string
+  transaction: GHLTransaction
 ) => {
+  console.log(
+    "---------start account creation for GHL---------",
+    details?.email
+  );
   let getAdminDetails = await prisma.adminConfig.findFirst({
     where: {
       key: process.env.DB_GHL_ACCESS_TOKEN_KEY,
@@ -152,6 +157,7 @@ const handleGHLAccountCreation = async (
       });
     }
   }
+  console.log("Get Admin details", !!getAdminDetails?.value);
 
   if (getAdminDetails && getAdminDetails.value) {
     const createSubAccountPayload = {
@@ -194,10 +200,7 @@ const handleGHLAccountCreation = async (
       subAccountOptions
     );
     const subAccountData = await subAccountRes.json();
-
-    if (subAccountData.error) {
-      throw new Error(subAccountData.error);
-    }
+    console.log("Sub Account Data", !!subAccountData?.id);
 
     if (subAccountData?.id) {
       const createUserPayload = {
@@ -230,16 +233,32 @@ const handleGHLAccountCreation = async (
       const userRes = await fetch(BASE_URL + "/users/", createUserOptions);
       const userData = await userRes.json();
 
+      console.log("User Data", !!userData?.id);
+
       if (userData?.id) {
         await prisma.gHLTransaction.update({
-          where: { id: transactionId },
+          where: { id: transaction.id },
           data: {
             status: "SUCCESS",
             accountGeneratedAt: new Date(),
             ghlAccountGenerated: true,
           },
         });
+      } else {
+        console.log("User data error>>", userData);
+        const transactionNote = `User creation failed for ${details?.email} - with error - ${userData?.message}`;
+        transaction.transactionNotes.push(transactionNote);
+        await prisma.gHLTransaction.update({
+          where: { id: transaction.id },
+          data: {
+            transactionNotes: transaction.transactionNotes,
+          },
+        });
       }
+    } else {
+      console.log("Sub account data error>>", subAccountData);
     }
   }
+
+  console.log("---------end account creation for GHL---------", details?.email);
 };
