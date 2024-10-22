@@ -5,21 +5,27 @@ const Loader = ({
   spinning,
   children,
   message,
+  className,
+  textClassName,
 }: {
   message?: string;
   spinning: boolean;
   children: any;
+  className?: string;
+  textClassName?: string;
 }) => {
   return spinning ? (
-    <div className="relative">
-      <div className="flex flex-col items-center justify-center">
-        <div className="loader">
-          <Spinner fill="#001f5c" className="animate-spin-slow absolute" />
-        </div>
-        <p className="absolute loader top-[4.7rem] text-[1.1rem] font-semibold">
-          {message}
-        </p>
+    <div
+      className={`relative w-full h-full flex flex-col justify-center items-center ${className}`}
+    >
+      <div className="loader absolute top-[40%] left-[45%]">
+        <Spinner fill="#001f5c" className="animate-spin-slow absolute" />
       </div>
+      <p
+        className={`absolute loader top-[50%] text-[1.1rem] font-semibold ${textClassName}`}
+      >
+        {message}
+      </p>
       <div className="spin_blur">{children}</div>
     </div>
   ) : (

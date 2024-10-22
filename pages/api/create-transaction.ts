@@ -3,10 +3,8 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import prisma from "../../lib/prisma";
 
 type Data = {
-  id: string;
+  url: string;
 };
-
-const BASE_URL = "https://services.leadconnectorhq.com";
 
 export default async function handler(
   req: NextApiRequest,
@@ -30,5 +28,28 @@ export default async function handler(
     },
   });
 
-  return res.status(200).json({ id: transaction.id });
+  const params = JSON.stringify({
+    email: body.email,
+    amount: body.amount,
+    metadata: body.metadata,
+    reference: transaction.id,
+    currency: "NGN",
+    callback_url: body.callback_url,
+  });
+
+  const response = await fetch(
+    `https://api.paystack.co/transaction/initialize`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: params,
+    }
+  );
+
+  const { data } = await response.json();
+
+  return res.status(200).json({ url: data?.authorization_url });
 }

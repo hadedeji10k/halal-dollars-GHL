@@ -12,20 +12,16 @@ import Select, { SelectChangeEvent } from "@mui/material/Select";
 import { countries, timezones } from "@/utils/constant";
 import { useRouter } from "next/router";
 
-const PaystackHookExample = dynamic(() => import("@/components/Paystack"), {
+const Paystack = dynamic(() => import("@/components/Paystack"), {
   ssr: false,
 });
 
 export default function Home() {
   const router = useRouter();
   const [showPaystack, setShowPaystack] = useState(false);
-  const [config, setConfig] = useState({
-    reference: new Date().getTime().toString(),
-    email: "",
-    amount: process.env.NEXT_PUBLIC_PAYMENT_AMOUNT || 3060000,
-    publicKey: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY,
-    metadata: {},
-  });
+
+  const [paymentUrl, setPaymentUrl] = useState("");
+  const bottomRef = React.useRef<HTMLDivElement>(null);
 
   const registerSchema = Yup.object().shape({
     email: Yup.string()
@@ -41,12 +37,10 @@ export default function Home() {
     state: Yup.string().required("State is required"),
     country: Yup.string().required("Country is required"),
     postalCode: Yup.string().required("Postal code is required"),
-    website: Yup.string()
-      .matches(
-        /^(https?:\/\/)?((([a-z\d]([a-z\d-]*[a-z\d])*)\.)+[a-z]{2,}|\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})(:\d+)?(\/[-a-z\d%_.~+]*)*(\?[;&a-z\d%_.~+=-]*)?(#[-a-z\d_]*)?$/i,
-        "Enter a valid website URL"
-      )
-      .required("Website URL is required"),
+    website: Yup.string().matches(
+      /^(https?:\/\/)?((([a-z\d]([a-z\d-]*[a-z\d])*)\.)+[a-z]{2,}|\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})(:\d+)?(\/[-a-z\d%_.~+]*)*(\?[;&a-z\d%_.~+=-]*)?(#[-a-z\d_]*)?$/i,
+      "Enter a valid website URL"
+    ),
     timezone: Yup.string().required("Time zone is required"),
   });
   const initialValues = {
@@ -76,28 +70,8 @@ export default function Home() {
           firstName: values.firstName,
           lastName: values.lastName,
           phoneNumber: values.phone,
-          amount: config.amount,
-        }),
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (!res.ok) {
-        Swal.fire({
-          title: "Error!",
-          text: "An error occurred while processing your request",
-          icon: "error",
-          confirmButtonText: "Ok",
-        });
-        return;
-      } else {
-        const data = await res.json();
-        setConfig({
-          ...config,
-          reference: data.id,
-          email: values.email,
-          metadata: {
+          amount: process.env.NEXT_PUBLIC_PAYMENT_AMOUNT || 3060000,
+          metadata: JSON.stringify({
             custom_fields: [
               {
                 display_name: "Email",
@@ -116,25 +90,33 @@ export default function Home() {
               },
             ],
             ...values,
-          },
+          }),
+          callback_url: `${window.location.origin}/success`,
+        }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!res.ok) {
+        Swal.fire({
+          title: "Error!",
+          text: "An error occurred while processing your request",
+          icon: "error",
+          confirmButtonText: "Ok",
         });
+        return;
+      } else {
+        const data = await res.json();
+        console.log("Data>>", data);
+        setPaymentUrl(data.url);
+        bottomRef.current?.scrollIntoView({ behavior: "smooth" });
         setShowPaystack(true);
       }
       return;
     },
   });
 
-  const onSuccess = (reference: string) => {
-    setShowPaystack(false);
-    Swal.fire({
-      title: "Success!",
-      text: "Congratulations!!! You've successfully purchased a GoHighLevel account. You will receive an email shortly.",
-      icon: "success",
-      confirmButtonText: "Ok",
-    }).finally(() => {
-      router.reload();
-    });
-  };
   const onClose = () => {
     formik.setSubmitting(false);
     setShowPaystack(false);
@@ -322,12 +304,9 @@ export default function Home() {
                 </Select>
               </div>
             </div>
+            <div ref={bottomRef}></div>
             {showPaystack ? (
-              <PaystackHookExample
-                onClose={onClose}
-                onSuccess={onSuccess}
-                config={config}
-              />
+              <Paystack url={paymentUrl} onClose={onClose} />
             ) : (
               <button
                 type="submit"

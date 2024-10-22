@@ -111,7 +111,7 @@ const handleGHLAccountCreation = async (
           value: data.access_token,
           details: {
             refreshToken: data.refresh_token,
-            expiresIn: addSeconds(new Date(), data.expires_in),
+            expiresIn: addSeconds(new Date(), Number(data.expires_in) - 300),
           },
         },
       });
@@ -151,7 +151,7 @@ const handleGHLAccountCreation = async (
           value: data.access_token,
           details: {
             refreshToken: data.refresh_token,
-            expiresIn: addSeconds(new Date(), data.expires_in),
+            expiresIn: addSeconds(new Date(), Number(data.expires_in) - 300),
           },
         },
       });
